@@ -49,6 +49,7 @@ def load(saver, sess, ckpt_path):
 
 def main():
     """Create the model and start the evaluation process."""
+    tf.compat.v1.disable_eager_execution()
     args = get_arguments()
     
     # Prepare image.
