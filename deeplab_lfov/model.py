@@ -33,7 +33,7 @@ def create_variable(name, shape):
        and initialise it using Xavier initialisation 
        (http://jmlr.org/proceedings/papers/v9/glorot10a/glorot10a.pdf).
     """
-    initialiser = tf.contrib.layers.xavier_initializer_conv2d(dtype=tf.float32)
+    initialiser = tf.compat.v1.keras.initializers.VarianceScaling(scale=1.0, mode="fan_avg", distribution="uniform", dtype=tf.float32)
     variable = tf.Variable(initialiser(shape=shape), name=name)
     return variable
 
@@ -41,7 +41,7 @@ def create_bias_variable(name, shape):
     """Create a bias variable of the given name and shape,
        and initialise it to zero.
     """
-    initialiser = tf.constant_initializer(value=0.0, dtype=tf.float32)
+    initialiser = tf.compat.v1.constant_initializer(value=0.0, dtype=tf.float32)
     variable = tf.Variable(initialiser(shape=shape), name=name)
     return variable
 
@@ -117,38 +117,38 @@ class DeepLabLFOVModel(object):
                 w = self.variables[v_idx * 2]
                 b = self.variables[v_idx * 2 + 1]
                 if dilation == 1:
-                    conv = tf.nn.conv2d(current, w, strides=[1, 1, 1, 1], padding='SAME')
+                    conv = tf.nn.conv2d(input=current, filters=w, strides=[1, 1, 1, 1], padding='SAME')
                 else:
                     conv = tf.nn.atrous_conv2d(current, w, dilation, padding='SAME')
                 current = tf.nn.relu(tf.nn.bias_add(conv, b))
                 v_idx += 1
             # Optional pooling and dropout after each block.
             if b_idx < 3:
-                current = tf.nn.max_pool(current, 
+                current = tf.nn.max_pool2d(input=current, 
                                          ksize=[1, ks, ks, 1],
                                          strides=[1, 2, 2, 1],
                                          padding='SAME')
             elif b_idx == 3:
-                current = tf.nn.max_pool(current, 
+                current = tf.nn.max_pool2d(input=current, 
                              ksize=[1, ks, ks, 1],
                              strides=[1, 1, 1, 1],
                              padding='SAME')
             elif b_idx == 4:
-                current = tf.nn.max_pool(current, 
+                current = tf.nn.max_pool2d(input=current, 
                                          ksize=[1, ks, ks, 1],
                                          strides=[1, 1, 1, 1],
                                          padding='SAME')
-                current = tf.nn.avg_pool(current, 
+                current = tf.nn.avg_pool2d(input=current, 
                                          ksize=[1, ks, ks, 1],
                                          strides=[1, 1, 1, 1],
                                          padding='SAME')
             elif b_idx <= 6:
-                current = tf.nn.dropout(current, keep_prob=keep_prob)
+                current = tf.nn.dropout(current, rate=1 - (keep_prob))
         
         # Classification layer; no ReLU.
         w = self.variables[v_idx * 2]
         b = self.variables[v_idx * 2 + 1]
-        conv = tf.nn.conv2d(current, w, strides=[1, 1, 1, 1], padding='SAME')
+        conv = tf.nn.conv2d(input=current, filters=w, strides=[1, 1, 1, 1], padding='SAME')
         current = tf.nn.bias_add(conv, b)
 
         return current
@@ -164,9 +164,9 @@ class DeepLabLFOVModel(object):
           Outputs a tensor of shape [batch_size h w 21]
           with last dimension comprised of 0's and 1's only.
         """
-        with tf.name_scope('label_encode'):
-            input_batch = tf.image.resize_nearest_neighbor(input_batch, new_size) # As labels are integer numbers, need to use NN interp.
-            input_batch = tf.squeeze(input_batch, squeeze_dims=[3]) # Reducing the channel dimension.
+        with tf.compat.v1.name_scope('label_encode'):
+            input_batch = tf.image.resize(input_batch, new_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR) # As labels are integer numbers, need to use NN interp.
+            input_batch = tf.squeeze(input_batch, axis=[3]) # Reducing the channel dimension.
             input_batch = tf.one_hot(input_batch, depth=21)
         return input_batch
       
@@ -180,9 +180,9 @@ class DeepLabLFOVModel(object):
           Argmax over the predictions of the network of the same shape as the input.
         """
         raw_output = self._create_network(tf.cast(input_batch, tf.float32), keep_prob=tf.constant(1.0))
-        raw_output = tf.image.resize_bilinear(raw_output, tf.shape(input_batch)[1:3,])
-        raw_output = tf.argmax(raw_output, dimension=3)
-        raw_output = tf.expand_dims(raw_output, dim=3) # Create 4D-tensor.
+        raw_output = tf.image.resize(raw_output, tf.shape(input=input_batch)[1:3,], method=tf.image.ResizeMethod.BILINEAR)
+        raw_output = tf.argmax(input=raw_output, axis=3)
+        raw_output = tf.expand_dims(raw_output, axis=3) # Create 4D-tensor.
         return tf.cast(raw_output, tf.uint8)
         
     
@@ -203,7 +203,7 @@ class DeepLabLFOVModel(object):
         gt = tf.reshape(label_batch, [-1, n_classes])
         
         # Pixel-wise softmax loss.
-        loss = tf.nn.softmax_cross_entropy_with_logits(prediction, gt)
-        reduced_loss = tf.reduce_mean(loss)
+        loss = tf.nn.softmax_cross_entropy_with_logits(labels=tf.stop_gradient(gt))
+        reduced_loss = tf.reduce_mean(input_tensor=loss)
         
         return reduced_loss

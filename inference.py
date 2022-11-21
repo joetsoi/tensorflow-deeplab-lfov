@@ -52,7 +52,7 @@ def main():
     args = get_arguments()
     
     # Prepare image.
-    img = tf.image.decode_jpeg(tf.read_file(args.img_path), channels=3)
+    img = tf.image.decode_jpeg(tf.io.read_file(args.img_path), channels=3)
     # Convert RGB to BGR.
     img_r, img_g, img_b = tf.split(split_dim=2, num_split=3, value=img)
     img = tf.cast(tf.concat(2, [img_b, img_g, img_r]), dtype=tf.float32)
@@ -63,21 +63,21 @@ def main():
     net = DeepLabLFOVModel()
 
     # Which variables to load.
-    trainable = tf.trainable_variables()
+    trainable = tf.compat.v1.trainable_variables()
     
     # Predictions.
-    pred = net.preds(tf.expand_dims(img, dim=0))
+    pred = net.preds(tf.expand_dims(img, axis=0))
       
     # Set up TF session and initialize variables. 
-    config = tf.ConfigProto()
+    config = tf.compat.v1.ConfigProto()
     config.gpu_options.allow_growth = True
-    sess = tf.Session(config=config)
-    init = tf.initialize_all_variables()
+    sess = tf.compat.v1.Session(config=config)
+    init = tf.compat.v1.initialize_all_variables()
     
     sess.run(init)
     
     # Load weights.
-    saver = tf.train.Saver(var_list=trainable)
+    saver = tf.compat.v1.train.Saver(var_list=trainable)
     load(saver, sess, args.model_weights)
     
     # Perform inference.

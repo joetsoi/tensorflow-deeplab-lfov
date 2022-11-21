@@ -37,23 +37,23 @@ def read_images_from_disk(input_queue, input_size, random_scale):
     Returns:
       Two tensors: the decoded image and its mask.
     """
-    img_contents = tf.read_file(input_queue[0])
-    label_contents = tf.read_file(input_queue[1])
+    img_contents = tf.io.read_file(input_queue[0])
+    label_contents = tf.io.read_file(input_queue[1])
     
     img = tf.image.decode_jpeg(img_contents, channels=3)
     label = tf.image.decode_png(label_contents, channels=1)
     if input_size is not None:
         h, w = input_size
         if random_scale:
-            scale = tf.random_uniform([1], minval=0.75, maxval=1.25, dtype=tf.float32, seed=None)
-            h_new = tf.to_int32(tf.mul(tf.to_float(tf.shape(img)[0]), scale))
-            w_new = tf.to_int32(tf.mul(tf.to_float(tf.shape(img)[1]), scale))
-            new_shape = tf.squeeze(tf.pack([h_new, w_new]), squeeze_dims=[1])
-            img = tf.image.resize_images(img, new_shape)
-            label = tf.image.resize_nearest_neighbor(tf.expand_dims(label, 0), new_shape)
-            label = tf.squeeze(label, squeeze_dims=[0]) # resize_image_with_crop_or_pad accepts 3D-tensor.
-        img = tf.image.resize_image_with_crop_or_pad(img, h, w)
-        label = tf.image.resize_image_with_crop_or_pad(label, h, w)
+            scale = tf.random.uniform([1], minval=0.75, maxval=1.25, dtype=tf.float32, seed=None)
+            h_new = tf.cast(tf.mul(tf.cast(tf.shape(input=img)[0], dtype=tf.float32), scale), dtype=tf.int32)
+            w_new = tf.cast(tf.mul(tf.cast(tf.shape(input=img)[1], dtype=tf.float32), scale), dtype=tf.int32)
+            new_shape = tf.squeeze(tf.pack([h_new, w_new]), axis=[1])
+            img = tf.image.resize(img, new_shape)
+            label = tf.image.resize(tf.expand_dims(label, 0), new_shape, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            label = tf.squeeze(label, axis=[0]) # resize_image_with_crop_or_pad accepts 3D-tensor.
+        img = tf.image.resize_with_crop_or_pad(img, h, w)
+        label = tf.image.resize_with_crop_or_pad(label, h, w)
     # RGB -> BGR.
     img_r, img_g, img_b = tf.split(split_dim=2, num_split=3, value=img)
     img = tf.cast(tf.concat(2, [img_b, img_g, img_r]), dtype=tf.float32)
@@ -82,9 +82,9 @@ class ImageReader(object):
         self.coord = coord
         
         self.image_list, self.label_list = read_labeled_image_list(self.data_dir, self.data_list)
-        self.images = tf.convert_to_tensor(self.image_list, dtype=tf.string)
-        self.labels = tf.convert_to_tensor(self.label_list, dtype=tf.string)
-        self.queue = tf.train.slice_input_producer([self.images, self.labels],
+        self.images = tf.convert_to_tensor(value=self.image_list, dtype=tf.string)
+        self.labels = tf.convert_to_tensor(value=self.label_list, dtype=tf.string)
+        self.queue = tf.compat.v1.train.slice_input_producer([self.images, self.labels],
                                                    shuffle=input_size is not None) # Not shuffling if it is val.
         self.image, self.label = read_images_from_disk(self.queue, self.input_size, random_scale) 
 
@@ -96,6 +96,6 @@ class ImageReader(object):
           
         Returns:
           Two tensors of size (batch_size, h, w, {3,1}) for images and masks.'''
-        image_batch, label_batch = tf.train.batch([self.image, self.label],
+        image_batch, label_batch = tf.compat.v1.train.batch([self.image, self.label],
                                                   num_elements)
         return image_batch, label_batch
