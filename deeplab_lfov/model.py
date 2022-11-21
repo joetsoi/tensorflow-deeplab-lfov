@@ -112,7 +112,7 @@ class DeepLabLFOVModel(object):
         v_idx = 0 # Index variable.
         
         # Last block is the classification layer.
-        for b_idx in xrange(len(dilations) - 1):
+        for b_idx in range(len(dilations) - 1):
             for l_idx, dilation in enumerate(dilations[b_idx]):
                 w = self.variables[v_idx * 2]
                 b = self.variables[v_idx * 2 + 1]

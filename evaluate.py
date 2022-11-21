@@ -4,7 +4,7 @@
 This script evaluates the model on around 1500 validation images.
 """
 
-from __future__ import print_function
+
 
 import argparse
 from datetime import datetime

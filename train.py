@@ -5,7 +5,7 @@ This script trains the model using augmented PASCAL VOC dataset,
 which contains approximately 10000 images for training and 1500 images for validation.
 """
 
-from __future__ import print_function
+
 
 import argparse
 from datetime import datetime
@@ -98,7 +98,7 @@ def main():
     """Create the model and start the training."""
     args = get_arguments()
     
-    h, w = map(int, args.input_size.split(','))
+    h, w = list(map(int, args.input_size.split(',')))
     input_size = (h, w)
     
     # Create queue coordinator.
@@ -151,7 +151,7 @@ def main():
         if step % args.save_pred_every == 0:
             loss_value, images, labels, preds, _ = sess.run([loss, image_batch, label_batch, pred, optim])
             fig, axes = plt.subplots(args.save_num_images, 3, figsize = (16, 12))
-            for i in xrange(args.save_num_images):
+            for i in range(args.save_num_images):
                 axes.flat[i * 3].set_title('data')
                 axes.flat[i * 3].imshow((images[i] + IMG_MEAN)[:, :, ::-1].astype(np.uint8))
 

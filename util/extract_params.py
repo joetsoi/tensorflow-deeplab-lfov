@@ -8,7 +8,7 @@ as well as all the corresponding weights.
 To run the script, PyCaffe should be installed.
 """
 
-from __future__ import print_function
+
 
 import argparse
 import os
@@ -53,7 +53,7 @@ def main():
     # In TF, the filter shape is as follows: [ks, ks, input_channels, output_channels],
     # while in Caffe it looks like this: [output_channels, input_channels, ks, ks].
     net_skeleton = list() 
-    for name, item in net.params.iteritems():
+    for name, item in net.params.items():
         net_skeleton.append([name + '/w', item[0].data.shape[::-1]]) # See the explanataion on filter formats above.
         net_skeleton.append([name + '/b', item[1].data.shape])
     
@@ -62,7 +62,7 @@ def main():
     
     # Net weights. 
     net_weights = dict()
-    for name, item in net.params.iteritems():
+    for name, item in net.params.items():
         net_weights[name + '/w'] = item[0].data.transpose(2, 3, 1, 0) # See the explanation on filter formats above.
         net_weights[name + '/b'] = item[1].data
     with open(os.path.join(args.output_dir,'net_weights.ckpt'), 'wb') as f:
